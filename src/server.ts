@@ -3,7 +3,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
-import { request } from "http";
+import studentsRoutes from "./routes/studentsRoutes"
+import connectDB from "./db";
 
 dotenv.config();
 
@@ -25,11 +26,9 @@ app.use(cookieParser());
 app.use(morgan("dev"));
 
 
-app.get('/test',(req,res)=>{
-    console.log("request recieved from client");
-    res.end();
-})
+app.use('/api/students',studentsRoutes)
 
-app.listen(PORT, () => {
+app.listen(PORT, async() => {
+   await connectDB()
   console.log(`Server running on port ${PORT}`);
 });
