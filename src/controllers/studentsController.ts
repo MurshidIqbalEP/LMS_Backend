@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import User from "../modal/userModal";
 import { generateRefreshtoken, generateToken } from "../utils/jwt";
 import { comparePassword, hashPassword } from "../utils/bcript";
+import generateRandomPassword from "../utils/rendomPas";
 
 // Register user
 export const registerUser = async (req: Request, res: Response): Promise<void> => {
@@ -63,3 +64,25 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// Registration using google auth
+export const googleRegister = async (req: Request, res: Response): Promise<void> => {
+   try {
+      const {name,email} = req.body;
+
+      const userExists = await User.findOne({ email });
+    if (userExists) {
+      res.status(400).json({ message: "User already exists" });
+      return;
+    }
+    
+    const password = await generateRandomPassword(6)
+    const hashedPassword = await hashPassword(password);
+    const user = await User.create({ name, email, password: hashedPassword });
+
+    res.status(201).json({ message: "User created successfully" });
+   } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ success: false, message: err.message });
+   }
+}
