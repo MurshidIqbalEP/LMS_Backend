@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import studentsRoutes from "./routes/studentsRoutes"
+import educatorRoutes from "./routes/educaterRoutes"
 import connectDB from "./db";
 
 dotenv.config();
@@ -26,7 +27,8 @@ app.use(cookieParser());
 app.use(morgan("dev"));
 
 
-app.use('/api/students',studentsRoutes)
+app.use('/api/students',studentsRoutes);
+app.use('/api/educator',educatorRoutes);
 
 app.listen(PORT, async() => {
    await connectDB()
