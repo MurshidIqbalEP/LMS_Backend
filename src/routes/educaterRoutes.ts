@@ -1,9 +1,10 @@
 import express from 'express';
-import {registerEducator } from '../controllers/educaterController'; 
+import {registerEducator,loginEducator } from '../controllers/educaterController'; 
 
 const router = express.Router();
 
 router.post('/register',registerEducator);
+router.post('/login',loginEducator);
 
 
 
