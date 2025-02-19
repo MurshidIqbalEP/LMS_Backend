@@ -70,6 +70,9 @@ export const loginEducator = async (req: Request, res: Response) => {
           _id: educator._id,
           name: educator.name,
           email: educator.email,
+          subjectExpertise:educator.subjectExpertise,
+          qualification:educator.qualification,
+          profilePicture:educator.profilePicture,
           token,
           message: "Successfully logged in",
         });
