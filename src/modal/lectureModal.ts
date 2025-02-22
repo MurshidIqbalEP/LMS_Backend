@@ -6,6 +6,7 @@ const lectureSchema = new mongoose.Schema({
     videoUrl: { type: String, required: true },
     resources: [{ type: String }], 
     duration: { type: Number },
+    ispreview:{type:Boolean,default:false},
     position: { type: Number, required: true }, 
   });
 

@@ -8,6 +8,8 @@ const courseSchema = new mongoose.Schema({
     price: { type: Number, default: 0 },
     thumbnail: { type: String },
     chapters: [{ type: mongoose.Schema.Types.ObjectId, ref: "Chapter" }],
+    isPublished:{type:Boolean , required:true, default:false},
+    rating:{type:Number ,min: 1,max: 5},
     createdAt: { type: Date, default: Date.now },
   });
   
