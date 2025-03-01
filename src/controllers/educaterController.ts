@@ -2,6 +2,9 @@ import { Request, Response } from "express";
 import { comparePassword, hashPassword } from "../utils/bcript";
 import Educator from "../modal/educatorModal";
 import { generateRefreshtoken, generateToken } from "../utils/jwt";
+import Course from "../modal/courseModal";
+import Chapter from "../modal/chapterModal";
+import Lecture from "../modal/lectureModal";
 
 // Register
 export const registerEducator = async (req: Request, res: Response) => {
@@ -81,3 +84,56 @@ export const loginEducator = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+
+// Post a course
+
+export const postCourse = async (req: Request, res: Response)=>{
+  try {
+    const { title, description, educatorId, category, price,thumbnailUrl, resourceUrl, chapters } = req.body;
+    
+    const newCourse = new Course({
+      title,
+      description,
+      educatorId,
+      category,
+      price,
+      thumbnail:thumbnailUrl,
+      resources:resourceUrl
+    });
+    await newCourse.save();
+
+     // Create chapters and lectures
+     for (const chapterData of chapters) {
+      const newChapter = new Chapter({
+        courseId: newCourse._id,
+        title: chapterData.name,
+        position: chapterData.id,
+      });
+
+      await newChapter.save();
+      newCourse.chapters.push(newChapter._id);
+
+      for (const lectureData of chapterData.lectures) {
+        const newLecture = new Lecture({
+          chapterId: newChapter._id,
+          title: lectureData.name,
+          videoUrl: lectureData.url,
+          position: lectureData.id,
+        
+        });
+
+        await newLecture.save();
+        newChapter.lectures.push(newLecture._id);
+      }
+
+      await newChapter.save();
+    }
+
+    await newCourse.save();
+     res.status(201).json({ message: "Course created successfully", course: newCourse });
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
