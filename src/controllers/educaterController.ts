@@ -87,11 +87,15 @@ export const loginEducator = async (req: Request, res: Response) => {
 
 
 // Post a course
-
 export const postCourse = async (req: Request, res: Response)=>{
   try {
     const { title, description, educatorId, category, price,thumbnailUrl, resourceUrl, chapters } = req.body;
-    
+
+    if (!educatorId) {
+     res.status(404).json({ success: false, message: "EducatorId not found" });
+     return
+    }
+
     const newCourse = new Course({
       title,
       description,
@@ -103,7 +107,6 @@ export const postCourse = async (req: Request, res: Response)=>{
     });
     await newCourse.save();
 
-     // Create chapters and lectures
      for (const chapterData of chapters) {
       const newChapter = new Chapter({
         courseId: newCourse._id,
@@ -122,16 +125,30 @@ export const postCourse = async (req: Request, res: Response)=>{
           position: lectureData.id,
         
         });
-
         await newLecture.save();
         newChapter.lectures.push(newLecture._id);
       }
-
       await newChapter.save();
     }
-
     await newCourse.save();
      res.status(201).json({ message: "Course created successfully", course: newCourse });
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+// Fetch courses by educator ID
+
+export const fetchCoursesById = async (req:Request,res:Response)=>{
+  try {
+    const {educatorId} = req.query;
+    if (!educatorId) {
+       res.status(400).json({ message: "Educator ID is required" });
+       return
+    }
+    const courses =await Course.find({educatorId},{title:1,description:1,category:1,thumbnail:1,isPublished:1})
+    res.status(200).json({courses})
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ success: false, message: err.message });
