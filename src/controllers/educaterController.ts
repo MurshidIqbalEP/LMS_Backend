@@ -139,7 +139,6 @@ export const postCourse = async (req: Request, res: Response)=>{
 }
 
 // Fetch courses by educator ID
-
 export const fetchCoursesById = async (req:Request,res:Response)=>{
   try {
     const {educatorId} = req.query;
@@ -147,8 +146,31 @@ export const fetchCoursesById = async (req:Request,res:Response)=>{
        res.status(400).json({ message: "Educator ID is required" });
        return
     }
-    const courses =await Course.find({educatorId},{title:1,description:1,category:1,thumbnail:1,isPublished:1})
+    const courses =await Course.find({educatorId},{title:1,description:1,category:1,thumbnail:1,isPublished:1,enrolledStudents:1})
     res.status(200).json({courses})
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+// Delete course by course ID
+export const deleteCourseById = async (req:Request,res:Response)=>{
+  try {
+    const {courseId} = req.query;
+    if (!courseId) {
+      res.status(400).json({ message: "Educator ID is required" });
+      return
+   }
+
+   const course = await Course.findById(courseId);
+   const chapters = await Chapter.find({courseId:course?._id});
+   const chapterIds = chapters.map(chapter => chapter._id);
+   await Lecture.deleteMany({ chapterId: { $in: chapterIds } });
+   await Chapter.deleteMany({ courseId: course?._id });
+   await Course.findByIdAndDelete(courseId);
+
+   res.status(200).json({ success: true, message: "Course deleted successfully" });
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ success: false, message: err.message });
