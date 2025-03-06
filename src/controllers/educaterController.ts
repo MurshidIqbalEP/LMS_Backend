@@ -176,3 +176,142 @@ export const deleteCourseById = async (req:Request,res:Response)=>{
     res.status(500).json({ success: false, message: err.message });
   }
 }
+
+// Fetch Course data by Course Id
+export const fetchCourseByCourseId = async (req:Request,res:Response)=>{
+  try {
+    const courseId = req.params.courseId;
+    console.log(courseId);
+    
+    const course = await Course.findById(courseId)
+  .populate({
+    path: "chapters",
+    populate: {
+      path: "lectures",
+    },
+  });
+  res.status(200).json({course});
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+// Update Course
+export const UpdateCourse = async (req: Request, res: Response) => {
+  try {
+    const { id, title, description, educatorId, category, price, thumbnailUrl, resourceUrl, chapters } = req.body;
+    if (!id) {
+       res.status(400).json({ success: false, message: "Course ID is required." });
+       return
+    }
+    const updatedCourse = await Course.findByIdAndUpdate(
+      id,
+      {
+        $set: { 
+          ...(title && { title }),
+          ...(description && { description }),
+          ...(educatorId && { educatorId }),
+          ...(category && { category }),
+          ...(price !== undefined && { price }),
+          ...(thumbnailUrl && { thumbnail: thumbnailUrl }),
+          ...(resourceUrl && { resources: resourceUrl })
+        },
+      },
+      { new: true } 
+    );
+
+    if (!updatedCourse) {
+       res.status(404).json({ success: false, message: "Course not found." });
+       return
+    }
+
+    if (chapters && Array.isArray(chapters)) {
+      const existingChapters = await Chapter.find({ courseId: id });
+      const existingChapterIds = existingChapters.map(chapter => chapter._id.toString());
+      const chapterIdsToKeep: string[] = [];
+      for (const chapterData of chapters) {
+        let chapter;
+        if (chapterData._id && typeof chapterData._id === 'string' && chapterData._id.trim()) {
+          chapterIdsToKeep.push(chapterData._id);
+          
+          chapter = await Chapter.findByIdAndUpdate(
+            chapterData._id,
+            { title: chapterData.name, position: chapterData.id },
+            { new: true }
+          );
+        } else {
+          chapter = new Chapter({
+            courseId: updatedCourse._id,
+            title: chapterData.name,
+            position: chapterData.id,
+          });
+          await chapter.save();
+          chapterIdsToKeep.push(chapter._id.toString());
+          updatedCourse.chapters.push(chapter._id);
+        }
+
+        if (chapter && chapterData.lectures && Array.isArray(chapterData.lectures)) {
+          const existingLectures = await Lecture.find({ chapterId: chapter._id });
+          const existingLectureIds = existingLectures.map(lecture => lecture._id.toString());
+          const lectureIdsToKeep: string[] = [];
+          for (const lectureData of chapterData.lectures) {
+            if (lectureData._id && typeof lectureData._id === 'string' && lectureData._id.trim()) {
+              lectureIdsToKeep.push(lectureData._id);
+              await Lecture.findByIdAndUpdate(
+                lectureData._id,
+                { title: lectureData.name, videoUrl: lectureData.url, position: lectureData.id },
+                { new: true }
+              );
+            } else {
+              const newLecture = new Lecture({
+                chapterId: chapter._id,
+                title: lectureData.name,
+                videoUrl: lectureData.url,
+                position: lectureData.id,
+              });
+              
+              await newLecture.save();
+              lectureIdsToKeep.push(newLecture._id.toString());
+              if (!chapter.lectures) {
+                chapter.lectures = [];
+              }
+              chapter.lectures.push(newLecture._id);
+            }
+          }
+
+          // Delete lectures
+          const lectureIdsToRemove = existingLectureIds.filter(id => !lectureIdsToKeep.includes(id));
+          if (lectureIdsToRemove.length > 0) {
+            await Lecture.deleteMany({ _id: { $in: lectureIdsToRemove } });
+            chapter.lectures = chapter.lectures.filter(lectureId => 
+              !lectureIdsToRemove.includes(lectureId.toString())
+            );
+          }
+          await chapter.save();
+        }
+      }
+
+      const chapterIdsToRemove = existingChapterIds.filter(id => !chapterIdsToKeep.includes(id));
+      if (chapterIdsToRemove.length > 0) {
+        // Delete associated lectures first
+        await Lecture.deleteMany({ chapterId: { $in: chapterIdsToRemove } });
+        // Then delete the chapters
+        await Chapter.deleteMany({ _id: { $in: chapterIdsToRemove } });
+        
+        updatedCourse.chapters = updatedCourse.chapters.filter(chapterId => 
+          !chapterIdsToRemove.includes(chapterId.toString())
+        );
+      }
+      await updatedCourse.save();
+    }
+     res.status(200).json({ 
+      success: true, 
+      message: "Course updated successfully"
+    });
+  } catch (error) {
+    console.error("Course update error:", error);
+    const err = error as Error;
+     res.status(500).json({ success: false, message: err.message });
+  }
+}

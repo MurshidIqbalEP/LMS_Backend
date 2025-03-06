@@ -7,7 +7,7 @@ const courseSchema = new mongoose.Schema({
     category: { type: String },
     price: { type: Number, default: 0 },
     thumbnail: { type: String },
-    resources: [{ type: String }],
+    resources: { type: String },
     chapters: [{ type: mongoose.Schema.Types.ObjectId, ref: "Chapter" }],
     isPublished:{type:Boolean , required:true, default:false},
     rating:{type:Number ,min: 1,max: 5},
