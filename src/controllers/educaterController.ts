@@ -5,6 +5,7 @@ import { generateRefreshtoken, generateToken } from "../utils/jwt";
 import Course from "../modal/courseModal";
 import Chapter from "../modal/chapterModal";
 import Lecture from "../modal/lectureModal";
+import Category from "../modal/categoryModal";
 
 // Register
 export const registerEducator = async (req: Request, res: Response) => {
@@ -79,6 +80,20 @@ export const loginEducator = async (req: Request, res: Response) => {
           token,
           message: "Successfully logged in",
         });
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+
+// Fetch all category
+export const fetchAllCategory = async (req: Request, res: Response) => {
+  try {
+    
+    const categories = await Category.find({}, { name: 1, _id: 0 }); 
+    const categoryNames = categories.map(category => category.name);
+     res.status(200).json({ categoryNames }); 
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ success: false, message: err.message });
@@ -180,6 +195,7 @@ export const deleteCourseById = async (req:Request,res:Response)=>{
 // Fetch Course data by Course Id
 export const fetchCourseByCourseId = async (req:Request,res:Response)=>{
   try {
+    
     const courseId = req.params.courseId;
     console.log(courseId);
     

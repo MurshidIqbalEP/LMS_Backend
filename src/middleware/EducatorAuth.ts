@@ -11,9 +11,9 @@ export const educatorauth = async (req: Request, res: Response, next: NextFuncti
        return
     }
 
-    const decoded = await jwt.verify(token, process.env.JWT_SECRET as string) as { userId: string };
-    const educatorId = decoded.userId;
-
+    const decoded =  jwt.verify(token, process.env.JWT_SECRET as string) as { id: string };
+    const educatorId = decoded.id;
+    
     const educator = await Educator.findById(educatorId);
 
     if (!educator) {

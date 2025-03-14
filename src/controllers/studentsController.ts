@@ -3,6 +3,8 @@ import User from "../modal/userModal";
 import { generateRefreshtoken, generateToken } from "../utils/jwt";
 import { comparePassword, hashPassword } from "../utils/bcript";
 import generateRandomPassword from "../utils/rendomPas";
+import Category from "../modal/categoryModal";
+import Course from "../modal/courseModal";
 
 // Register user
 export const registerUser = async (
@@ -152,3 +154,35 @@ export const googleLogin = async (
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// Fetch all category
+export const fetchAllCategory = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const categories = await Category.find() 
+    const categoryNames = categories.map(cat => cat.name); 
+    console.log(categoryNames)
+    res.status(200).json(categoryNames);
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Fetch All Courses
+export const fetchAllCourses = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const courses = await Course.find({},{_id:0,title:1,description:1,category:1,price:1,thumbnail:1,rating:1})
+    console.log(courses)
+    res.status(200).json(courses)
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
