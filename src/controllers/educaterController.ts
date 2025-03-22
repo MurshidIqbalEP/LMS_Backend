@@ -197,7 +197,6 @@ export const fetchCourseByCourseId = async (req:Request,res:Response)=>{
   try {
     
     const courseId = req.params.courseId;
-    console.log(courseId);
     
     const course = await Course.findById(courseId)
   .populate({

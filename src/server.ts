@@ -1,13 +1,14 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+dotenv.config();
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import studentsRoutes from "./routes/studentsRoutes"
 import educatorRoutes from "./routes/educaterRoutes"
 import connectDB from "./db";
 
-dotenv.config();
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
