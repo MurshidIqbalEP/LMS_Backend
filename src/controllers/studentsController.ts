@@ -11,12 +11,12 @@ import Razorpay from "razorpay";
 import crypto from "crypto";
 const { randomBytes, createHmac } = crypto;
 import Payment from "../modal/paymentModal";
+import Wallet from "../modal/walletModal";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID!,
   key_secret: process.env.RAZORPAY_KEY_SECRET!,
 });
-
 
 // Register user
 export const registerUser = async (
@@ -173,8 +173,8 @@ export const fetchAllCategory = async (
   res: Response
 ): Promise<void> => {
   try {
-    const categories = await Category.find() 
-    const categoryNames = categories.map(cat => cat.name); 
+    const categories = await Category.find();
+    const categoryNames = categories.map((cat) => cat.name);
     res.status(200).json(categoryNames);
   } catch (error) {
     const err = error as Error;
@@ -188,8 +188,19 @@ export const fetchAllCourses = async (
   res: Response
 ): Promise<void> => {
   try {
-    const courses = await Course.find({},{_id:1,title:1,description:1,category:1,price:1,thumbnail:1,rating:1})
-    res.status(200).json(courses)
+    const courses = await Course.find(
+      {},
+      {
+        _id: 1,
+        title: 1,
+        description: 1,
+        category: 1,
+        price: 1,
+        thumbnail: 1,
+        rating: 1,
+      }
+    );
+    res.status(200).json(courses);
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ success: false, message: err.message });
@@ -197,93 +208,143 @@ export const fetchAllCourses = async (
 };
 
 // Fetch Course Data
-export const fetchCourse = async (req:Request,res:Response): Promise<void> =>{
+export const fetchCourse = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
-    
-    const { courseId } = req.query;
-    const course = await Course.findById(courseId,{resources:0,createdAt:0})
+    const { courseId,studentId } = req.query;
+
+    const course = await Course.findById(courseId, {
+      resources: 0,
+      createdAt: 0,
+    })
       .populate({
-        path: 'educatorId',
-        select: 'name profilePicture', 
+        path: "educatorId",
+        select: "name profilePicture",
       })
       .populate({
-        path: 'chapters',
-        options: { sort: { position: 1 } }, 
+        path: "chapters",
+        options: { sort: { position: 1 } },
         populate: {
-          path: 'lectures',
-          model: 'Lecture',
+          path: "lectures",
+          model: "Lecture",
           options: { sort: { position: 1 } },
         },
       });
-    res.status(200).json({courseData:course})
-    
+      const isEnrolled = course?.enrolledStudents.includes(studentId as string);
+    res.status(200).json({ courseData: course,isEnrolled });
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ success: false, message: err.message });
   }
-}
+};
 
-// For Razorpay Payment 
-export const payment = async (req:Request,res:Response): Promise<void> =>{
+// For Razorpay Payment
+export const payment = async (req: Request, res: Response): Promise<void> => {
   try {
     const { amount } = req.body;
 
     const options = {
-      amount:Number(amount)*100,
+      amount: Number(amount) * 100,
       currency: "INR",
       receipt: randomBytes(10).toString("hex"),
       payment_capture: 1,
-     
-    }
+    };
     const order = await razorpay.orders.create(options);
-    
-    res.status(200).json({ success: true, order });
 
+    res.status(200).json({ success: true, order });
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ success: false, message: err.message });
   }
-}
+};
 
 // For Razorpay Payment Verification
-export const paymentVerification = async (req:Request,res:Response): Promise<void> =>{
+export const paymentVerification = async (req: Request,res: Response): Promise<void> => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature,courseId,educatorId } = req.body;
-    
+    const {razorpay_order_id,razorpay_payment_id,razorpay_signature,courseId,educatorId,studentId} = req.body;
+
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-       res.status(400).json({ success: false, message: "Missing payment details" });
-       return
+      res
+        .status(400)
+        .json({ success: false, message: "Missing payment details" });
+      return;
     }
 
     // Generate signature hash using HMAC SHA256
     const secret = process.env.RAZORPAY_KEY_SECRET as string;
-    
-    const sign = `${razorpay_order_id}|${razorpay_payment_id}`
-     console.log(razorpay_signature);
-     
-    const expectedSignature = createHmac("sha256", secret).update(sign).digest("hex");
-    console.log(expectedSignature,"eeeeeeeeeeeeeeeeeeexpected");
-    
+    const sign = `${razorpay_order_id}|${razorpay_payment_id}`;
+
+    const expectedSignature = createHmac("sha256", secret)
+      .update(sign)
+      .digest("hex");
 
     // Compare generated signature with the received signature
     if (expectedSignature === razorpay_signature) {
-       const payment = new Payment({
-        razorpay_order_id, 
+      const payment = new Payment({
+        razorpay_order_id,
         razorpay_payment_id,
-         razorpay_signature
-       })
-       await payment.save();
-      res.status(200).json({ success: true, message: "Payment verified successfully" });
-    } else {
-      res.status(400).json({ success: false, message: "Invalid payment signature" });
-    }
+        razorpay_signature,
+      });
+      await payment.save();
 
+      const course = await Course.findById(courseId);
+      if (!course) {
+        res.status(404).json({ success: false, message: "Course not found" });
+        return;
+      }
+      const amount = course.price;
+      let wallet = await Wallet.findOne({ userId: educatorId });
+      if (!wallet) {
+        wallet = new Wallet({ userId: educatorId, balance: 0, transactions: [] });
+      }
+      wallet.balance += amount;
+      wallet.transactions.push({
+        amount,
+        type: "credit",
+        description: `Payment received for course ${course.title}`,
+        createdAt: new Date(),
+      });
+      await wallet.save();
+      if (!course.enrolledStudents.includes(studentId)) {
+        course.enrolledStudents.push(studentId);
+        await course.save();
+      }
+
+      res
+        .status(200)
+        .json({ success: true, message: "Payment verified successfully" });
+    } else {
+      res
+        .status(400)
+        .json({ success: false, message: "Invalid payment signature" });
+    }
   } catch (error) {
     const err = error as Error;
     console.error("Payment Verification Error:", error);
     res.status(500).json({ success: false, message: err.message });
   }
-}
+};
 
-
+// For student Entrollments
+export const fetchEntrollments = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { studentId } = req.params;
+    
+    const enrolledCourses = await Course.find(
+      { enrolledStudents: studentId },
+      { _id: 1, title: 1, description: 1, category: 1, price: 1, thumbnail: 1 }
+    );
+   
+    res.status(200).json({success:true,enrolledCourses})
+   
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
 

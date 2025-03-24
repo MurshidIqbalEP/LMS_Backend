@@ -6,6 +6,7 @@ import Course from "../modal/courseModal";
 import Chapter from "../modal/chapterModal";
 import Lecture from "../modal/lectureModal";
 import Category from "../modal/categoryModal";
+import Wallet from "../modal/walletModal";
 
 // Register
 export const registerEducator = async (req: Request, res: Response) => {
@@ -36,6 +37,12 @@ export const registerEducator = async (req: Request, res: Response) => {
       profilePicture,
       governmentId,
     });
+    await Wallet.create({
+      userId: educator._id,
+      balance: 0, 
+      transactions: [], 
+    });
+
     res.status(201).json({ message: "Educator created successfully" });
   } catch (error) {
     const err = error as Error;
