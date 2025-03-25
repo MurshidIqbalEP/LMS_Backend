@@ -1,5 +1,5 @@
 import express from 'express';
-import { registerUser,loginUser,googleRegister,googleLogin, fetchAllCategory, fetchAllCourses,fetchCourse, payment, paymentVerification, fetchEntrollments} from '../controllers/studentsController'; 
+import { registerUser,loginUser,googleRegister,googleLogin, fetchAllCategory, fetchAllCourses,fetchCourse, payment, paymentVerification, fetchEntrollments, fetchPlayerData} from '../controllers/studentsController'; 
 
 const router = express.Router();
 
@@ -13,6 +13,7 @@ router.get("/fetchCourse",fetchCourse);
 router.post("/payment",payment);
 router.post("/paymentVerification",paymentVerification);
 router.get("/myEntrollments/:studentId",fetchEntrollments);
+router.get("/fetchPlayerData",fetchPlayerData);
 
 
 export default router;

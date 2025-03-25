@@ -348,3 +348,42 @@ export const fetchEntrollments = async (
   }
 };
 
+// For Fetching Course Player Data
+export const fetchPlayerData = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { courseId,studentId } = req.query;
+
+    const course = await Course.findById(courseId)
+      .populate({
+        path: "educatorId",
+        select: "name profilePicture",
+      })
+      .populate({
+        path: "chapters",
+        options: { sort: { position: 1 } },
+        populate: {
+          path: "lectures",
+          model: "Lecture",
+          options: { sort: { position: 1 } },
+        },
+      });
+      
+      if (!course) {
+         res.status(404).json({ success: false, message: "Course not found" });
+         return
+      }
+      const isEnrolled = course?.enrolledStudents.includes(studentId as string);
+      if(isEnrolled){
+        res.status(200).json({ courseData: course });
+      }else{
+         res.status(403).json({ success: false, message: "Access denied. Enrollment required." });
+      }
+    
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
