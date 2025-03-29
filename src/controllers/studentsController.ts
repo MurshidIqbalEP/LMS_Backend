@@ -12,6 +12,7 @@ import crypto from "crypto";
 const { randomBytes, createHmac } = crypto;
 import Payment from "../modal/paymentModal";
 import Wallet from "../modal/walletModal";
+import CourseProgress from "../modal/courseProgressModal";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID!,
@@ -387,3 +388,116 @@ export const fetchPlayerData = async (
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// For mark chapter as completed
+// export const markChapterCompleted = async (req:Request,res:Response): Promise<void> =>{
+//   try {
+//     const { userId, courseId, chapterId, lectureId } = req.body;
+
+//     const progress = await CourseProgress.findOneAndUpdate(
+//       { userId, courseId, "chapters.chapterId": chapterId, "chapters.lecturesProgress.lectureId": lectureId },
+//       { 
+//         $set: { "chapters.$[chapter].lecturesProgress.$[lecture].isCompleted": true, "chapters.$[chapter].lecturesProgress.$[lecture].completedAt": new Date() }
+//       },
+//       { arrayFilters: [{ "chapter.chapterId": chapterId }, { "lecture.lectureId": lectureId }], new: true }
+//     );
+
+//     if (!progress) {
+//       res.status(404).json({ success: false, message: "Progress not found" });
+//       return;
+//     }
+
+//       // Check if all lectures in the chapter are completed
+//       const chapter = progress.chapters.find(ch => ch.chapterId.toString() === chapterId);
+//       if (chapter && chapter.lecturesProgress.every(lec => lec.isCompleted)) {
+//         await CourseProgress.updateOne(
+//           { userId, courseId, "chapters.chapterId": chapterId },
+//           { $set: { "chapters.$.isCompleted": true, "chapters.$.completedAt": new Date() } }
+//         );
+//       }
+  
+//       res.status(200).json({ success: true, message: "Lecture marked as viewed", progress });
+
+//   } catch (error) {
+//     const err = error as Error;
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// }
+
+// For mark lecture as viewed
+// export const markLectureViewed = async (req: Request, res: Response): Promise<void> => {
+//   try {
+//     const { userId, courseId, chapterId, lectureId } = req.body;
+
+//     const progress = await CourseProgress.findOneAndUpdate(
+//       { userId, courseId, "chapters.chapterId": chapterId, "chapters.lecturesProgress.lectureId": lectureId },
+//       { 
+//         $set: { 
+//           "chapters.$[chapter].lecturesProgress.$[lecture].isCompleted": true,
+//           "chapters.$[chapter].lecturesProgress.$[lecture].completedAt": new Date(),
+//         }
+//       },
+//       { 
+//         arrayFilters: [{ "chapter.chapterId": chapterId }, { "lecture.lectureId": lectureId }], 
+//         new: true 
+//       }
+//     );
+
+//     if (!progress) {
+//       res.status(404).json({ success: false, message: "Progress not found" });
+//       return;
+//     }
+
+//     res.status(200).json({ success: true, message: "Lecture marked as viewed", progress });
+
+//   } catch (error) {
+//     const err = error as Error;
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
+
+
+// For Get current course progress
+export const getCourseProgress = async (req:Request,res:Response): Promise<void> =>{
+  try {
+    const { userId, courseId } = req.query;
+
+    let progress = await CourseProgress.findOne({ userId, courseId });
+
+    if (!progress) {
+      const course = await Course.findById(courseId)
+        .populate({
+          path: "chapters",
+          populate: { path: "lectures" } 
+        })
+      if (!course) {
+        res.status(404).json({ success: false, message: "Course not found" });
+        return;
+      }
+
+       progress = new CourseProgress({
+        userId,
+        courseId,
+        chapters: course.chapters.map((chapter: any) => ({
+          chapterId: chapter._id,
+          lecturesProgress: chapter.lectures.map((lecture: any) => ({
+            lectureId: lecture._id,
+            isCompleted: false, 
+          })),
+        })),
+      });
+
+      await progress.save();
+    
+    }
+
+    const totalLectures = progress.chapters.reduce((acc, ch) => acc + ch.lecturesProgress.length, 0);
+    const completedLectures = progress.chapters.reduce((acc, ch) => acc + ch.lecturesProgress.filter(lec => lec.isCompleted).length, 0);
+    const completionPercentage = totalLectures > 0 ? (completedLectures / totalLectures) * 100 : 0;
+
+    res.status(200).json({ success: true, completionPercentage, progress });
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
