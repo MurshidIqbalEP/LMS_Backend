@@ -389,72 +389,75 @@ export const fetchPlayerData = async (
   }
 };
 
-// For mark chapter as completed
-// export const markChapterCompleted = async (req:Request,res:Response): Promise<void> =>{
-//   try {
-//     const { userId, courseId, chapterId, lectureId } = req.body;
-
-//     const progress = await CourseProgress.findOneAndUpdate(
-//       { userId, courseId, "chapters.chapterId": chapterId, "chapters.lecturesProgress.lectureId": lectureId },
-//       { 
-//         $set: { "chapters.$[chapter].lecturesProgress.$[lecture].isCompleted": true, "chapters.$[chapter].lecturesProgress.$[lecture].completedAt": new Date() }
-//       },
-//       { arrayFilters: [{ "chapter.chapterId": chapterId }, { "lecture.lectureId": lectureId }], new: true }
-//     );
-
-//     if (!progress) {
-//       res.status(404).json({ success: false, message: "Progress not found" });
-//       return;
-//     }
-
-//       // Check if all lectures in the chapter are completed
-//       const chapter = progress.chapters.find(ch => ch.chapterId.toString() === chapterId);
-//       if (chapter && chapter.lecturesProgress.every(lec => lec.isCompleted)) {
-//         await CourseProgress.updateOne(
-//           { userId, courseId, "chapters.chapterId": chapterId },
-//           { $set: { "chapters.$.isCompleted": true, "chapters.$.completedAt": new Date() } }
-//         );
-//       }
-  
-//       res.status(200).json({ success: true, message: "Lecture marked as viewed", progress });
-
-//   } catch (error) {
-//     const err = error as Error;
-//     res.status(500).json({ success: false, message: err.message });
-//   }
-// }
 
 // For mark lecture as viewed
-// export const markLectureViewed = async (req: Request, res: Response): Promise<void> => {
-//   try {
-//     const { userId, courseId, chapterId, lectureId } = req.body;
+export const markLectureViewed = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId, courseId, chapterId, lectureId } = req.body;
+    
+    // Find user's course progress
+    const progress = await CourseProgress.findOne({ userId, courseId });
 
-//     const progress = await CourseProgress.findOneAndUpdate(
-//       { userId, courseId, "chapters.chapterId": chapterId, "chapters.lecturesProgress.lectureId": lectureId },
-//       { 
-//         $set: { 
-//           "chapters.$[chapter].lecturesProgress.$[lecture].isCompleted": true,
-//           "chapters.$[chapter].lecturesProgress.$[lecture].completedAt": new Date(),
-//         }
-//       },
-//       { 
-//         arrayFilters: [{ "chapter.chapterId": chapterId }, { "lecture.lectureId": lectureId }], 
-//         new: true 
-//       }
-//     );
+    if (!progress) {
+       res.status(404).json({ message: "Course progress not found" });
+       return
+    }
 
-//     if (!progress) {
-//       res.status(404).json({ success: false, message: "Progress not found" });
-//       return;
-//     }
+    // Find the specific chapter in progress
+    const chapterProgress = progress.chapters.find(
+      (chapter) => chapter.chapterId.toString() === chapterId
+    );
 
-//     res.status(200).json({ success: true, message: "Lecture marked as viewed", progress });
+    if (!chapterProgress) {
+       res.status(404).json({ message: "Chapter not found in progress" });
+       return
+    }
 
-//   } catch (error) {
-//     const err = error as Error;
-//     res.status(500).json({ success: false, message: err.message });
-//   }
-// };
+    // Find the lecture in the chapter
+    const lectureProgress = chapterProgress.lecturesProgress.find(
+      (lecture) => lecture.lectureId.toString() === lectureId
+    );
+    
+    if (!lectureProgress) {
+       res.status(404).json({ message: "Lecture not found in progress" });
+       return
+    }
+
+    // Mark the lecture as completed if not already done
+    if (!lectureProgress.isCompleted) {
+      lectureProgress.isCompleted = true;
+      lectureProgress.completedAt = new Date();
+    }
+
+    // Check if all lectures in this chapter are completed
+    const allLecturesCompleted = chapterProgress.lecturesProgress.every(
+      (lecture) => lecture.isCompleted
+    );
+
+    if (allLecturesCompleted) {
+      chapterProgress.isCompleted = true;
+      chapterProgress.completedAt = new Date();
+    }
+
+    // Check if all chapters are completed
+    const allChaptersCompleted = progress.chapters.every(
+      (chapter) => chapter.isCompleted
+    );
+
+    if (allChaptersCompleted) {
+      progress.isCompleted = true;
+      progress.completedAt = new Date();
+    }
+
+    // Save the updated progress
+    await progress.save();
+
+    res.status(200).json({ success: true, progress });
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
 
 
 // For Get current course progress
@@ -469,20 +472,22 @@ export const getCourseProgress = async (req:Request,res:Response): Promise<void>
         .populate({
           path: "chapters",
           populate: { path: "lectures" } 
-        })
+        })as unknown as { chapters: { lectures: any[] }[] };
+
       if (!course) {
         res.status(404).json({ success: false, message: "Course not found" });
         return;
       }
-
+      const firstChapterHasOneLecture = course.chapters[0].lectures.length === 1; 
        progress = new CourseProgress({
         userId,
         courseId,
-        chapters: course.chapters.map((chapter: any) => ({
+        chapters: course.chapters.map((chapter: any,index: number) => ({
           chapterId: chapter._id,
-          lecturesProgress: chapter.lectures.map((lecture: any) => ({
+          isCompleted:index===0 && firstChapterHasOneLecture,
+          lecturesProgress: chapter.lectures.map((lecture: any,lectureIndex: number) => ({
             lectureId: lecture._id,
-            isCompleted: false, 
+            isCompleted: index === 0 && lectureIndex === 0, 
           })),
         })),
       });
