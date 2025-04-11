@@ -2,7 +2,11 @@ import mongoose from "mongoose";
 
 const LectureProgressSchema = new mongoose.Schema({
     lectureId:{type: mongoose.Schema.Types.ObjectId, ref: "Lecture", required: true},
-    isCompleted:{type:Boolean,default:false},
+    status: {
+        type: String,
+        enum: ["not_started", "in_progress", "completed"],
+        default: "not_started",
+      },
     completedAt: { type: Date, default: null }
 })
 

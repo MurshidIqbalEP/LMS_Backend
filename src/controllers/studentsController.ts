@@ -13,6 +13,11 @@ const { randomBytes, createHmac } = crypto;
 import Payment from "../modal/paymentModal";
 import Wallet from "../modal/walletModal";
 import CourseProgress from "../modal/courseProgressModal";
+import axios from "axios";
+import pdfParse from 'pdf-parse';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY as string);
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID!,
@@ -393,7 +398,10 @@ export const fetchPlayerData = async (
 // For mark lecture as viewed
 export const markLectureViewed = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId, courseId, chapterId, lectureId } = req.body;
+    const { userId, courseId, chapterId, lectureId,status } = req.body;
+
+    console.log(status);
+    
     
     // Find user's course progress
     const progress = await CourseProgress.findOne({ userId, courseId });
@@ -424,14 +432,16 @@ export const markLectureViewed = async (req: Request, res: Response): Promise<vo
     }
 
     // Mark the lecture as completed if not already done
-    if (!lectureProgress.isCompleted) {
-      lectureProgress.isCompleted = true;
-      lectureProgress.completedAt = new Date();
+    if (lectureProgress.status !== "completed") {
+      lectureProgress.status = status;
+      if (status === "completed") {
+        lectureProgress.completedAt = new Date();
+      }
     }
 
     // Check if all lectures in this chapter are completed
     const allLecturesCompleted = chapterProgress.lecturesProgress.every(
-      (lecture) => lecture.isCompleted
+      (lecture) => lecture.status === "completed"
     );
 
     if (allLecturesCompleted) {
@@ -477,17 +487,16 @@ export const getCourseProgress = async (req:Request,res:Response): Promise<void>
       if (!course) {
         res.status(404).json({ success: false, message: "Course not found" });
         return;
-      }
-      const firstChapterHasOneLecture = course.chapters[0].lectures.length === 1; 
+      } 
        progress = new CourseProgress({
         userId,
         courseId,
         chapters: course.chapters.map((chapter: any,index: number) => ({
           chapterId: chapter._id,
-          isCompleted:index===0 && firstChapterHasOneLecture,
+          isCompleted:false,
           lecturesProgress: chapter.lectures.map((lecture: any,lectureIndex: number) => ({
             lectureId: lecture._id,
-            isCompleted: index === 0 && lectureIndex === 0, 
+            status:index === 0 && lectureIndex === 0? 'in_progress': 'not_started',
           })),
         })),
       });
@@ -497,12 +506,56 @@ export const getCourseProgress = async (req:Request,res:Response): Promise<void>
     }
 
     const totalLectures = progress.chapters.reduce((acc, ch) => acc + ch.lecturesProgress.length, 0);
-    const completedLectures = progress.chapters.reduce((acc, ch) => acc + ch.lecturesProgress.filter(lec => lec.isCompleted).length, 0);
+    const completedLectures = progress.chapters.reduce((acc, ch) => acc + ch.lecturesProgress.filter(lec => lec.status === "completed").length, 0);
     const completionPercentage = totalLectures > 0 ? (completedLectures / totalLectures) * 100 : 0;
 
     res.status(200).json({ success: true, completionPercentage, progress });
   } catch (error) {
     const err = error as Error;
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+
+
+export const generateQuestionsFromPDF = async (req:Request,res:Response): Promise<void> =>{
+  try {
+    const { pdfUrl } = req.query;
+
+    if (!pdfUrl) {
+       res.status(400).json({ message: 'PDF URL is required' });
+       return
+    }
+
+    const response = await axios.get(pdfUrl as string, { responseType: 'arraybuffer' });
+
+    const data = await pdfParse(response.data);  
+    const extractedText = data.text;
+
+    const prompt = `
+            Generate 10 meaningful and relevant interview questions from the following content.
+
+            Rules to follow strictly:
+            1. Only return the questions.
+            2. Do not add any extra text, explanation, or numbering.
+            3. Format your response exactly like this: ["question 1", "question 2", "question 3", ...]
+            4. The questions will be asked by a voice assistant, so avoid using symbols like /, *, -, (), or any special characters.
+            5. The questions should sound professional, clear, and natural for an interview setting.
+            6. Focus on understanding, concepts, and practical knowledge from the content.
+            7. Keep each question concise and not more than 20 words if possible.
+            8. Ask only topic-specific questions based on key concepts, definitions, or facts from the content.
+            9. Avoid opinion-based or scenario-based questions.
+            10. Questions should feel like they belong in an academic interview or exam.
+              Content:${extractedText}`;
+
+   const result = await model.generateContent(prompt);
+   const response2 = await result.response;
+   const text = response2.text();
+  
+   res.status(200).json({ success: true, questions:text });
+  } catch (error) {
+    const err = error as Error;
+    console.log(err.message)
     res.status(500).json({ success: false, message: err.message });
   }
 }
