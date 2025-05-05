@@ -400,7 +400,6 @@ export const markLectureViewed = async (req: Request, res: Response): Promise<vo
   try {
     const { userId, courseId, chapterId, lectureId,status } = req.body;
 
-    console.log(status);
     
     
     // Find user's course progress
@@ -523,13 +522,17 @@ export const generateQuestionsFromPDF = async (req:Request,res:Response): Promis
     const { pdfUrl } = req.query;
 
     if (!pdfUrl) {
-       res.status(400).json({ message: 'PDF URL is required' });
-       return
+      res.status(400).json({ message: "PDF URL is required" });
+      return;
     }
 
-    const response = await axios.get(pdfUrl as string, { responseType: 'arraybuffer' });
+    console.log("hreeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
 
-    const data = await pdfParse(response.data);  
+    const response = await axios.get(pdfUrl as string, {
+      responseType: "arraybuffer",
+    });
+
+    const data = await pdfParse(response.data);
     const extractedText = data.text;
 
     const prompt = `
@@ -548,11 +551,35 @@ export const generateQuestionsFromPDF = async (req:Request,res:Response): Promis
             10. Questions should feel like they belong in an academic interview or exam.
               Content:${extractedText}`;
 
-   const result = await model.generateContent(prompt);
-   const response2 = await result.response;
-   const text = response2.text();
-  
-   res.status(200).json({ success: true, questions:text });
+    const completion = await axios.post(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        model: "deepseek/deepseek-r1-zero:free", // Correct model name
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "http://localhost:5000", // Optional, but must be valid
+          "X-Title": "Interview Question Generator", // Optional
+        },
+      }
+    );
+
+    const rawText: string =completion.data.choices[0]?.message?.reasoning || "";
+    const questionLines: string[] = rawText
+      .split("\n")
+      .filter((line: string) => /^\d+\.\s+/.test(line)) 
+      .map((line: string) => line.replace(/^\d+\.\s+/, "").trim()); 
+      console.log(questionLines);
+
+    res.status(200).json({ success: true, questions: questionLines });
   } catch (error) {
     const err = error as Error;
     console.log(err.message)
