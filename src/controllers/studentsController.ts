@@ -516,7 +516,7 @@ export const getCourseProgress = async (req:Request,res:Response): Promise<void>
 }
 
 
-
+// For creating questions from pdf
 export const generateQuestionsFromPDF = async (req:Request,res:Response): Promise<void> =>{
   try {
     const { pdfUrl } = req.query;
@@ -585,3 +585,36 @@ export const generateQuestionsFromPDF = async (req:Request,res:Response): Promis
     res.status(500).json({ success: false, message: err.message });
   }
 }
+
+// For fetching Top Courses
+export const fetchTopCourses = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const courses = await Course.aggregate([
+      {
+        $addFields: {
+          enrolledCount: { $size: "$enrolledStudents" }, 
+        },
+      },
+      {
+        $sort: { enrolledCount: -1 },
+      },
+      {
+        $limit: 5,
+      },
+      {
+        $project: { 
+          title: 1,
+          thumbnail: 1, 
+          _id: 1,
+        },
+      },
+    ]);
+    res.status(200).json({ success: true, courses });
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
