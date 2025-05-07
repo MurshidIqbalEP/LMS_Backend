@@ -554,7 +554,7 @@ export const generateQuestionsFromPDF = async (req:Request,res:Response): Promis
     const completion = await axios.post(
       "https://openrouter.ai/api/v1/chat/completions",
       {
-        model: "deepseek/deepseek-r1-zero:free", // Correct model name
+        model: "deepseek/deepseek-r1-zero:free", 
         messages: [
           {
             role: "user",
@@ -566,20 +566,19 @@ export const generateQuestionsFromPDF = async (req:Request,res:Response): Promis
         headers: {
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": "http://localhost:5000", // Optional, but must be valid
-          "X-Title": "Interview Question Generator", // Optional
+          "HTTP-Referer": "http://localhost:5000", 
+          "X-Title": "Interview Question Generator", 
         },
       }
     );
 
-    const rawText: string =completion.data.choices[0]?.message?.reasoning || "";
-    const questionLines: string[] = rawText
-      .split("\n")
-      .filter((line: string) => /^\d+\.\s+/.test(line)) 
-      .map((line: string) => line.replace(/^\d+\.\s+/, "").trim()); 
-      console.log(questionLines);
+    const rawText: string = completion.data.choices[0]?.message?.content || "";
+    const cleanedInput = rawText.replace(/\\boxed\{\[|\]\}/g, '');
+    const questions = cleanedInput
+  .split(",") 
+  .map((q) => q.replace(/[\n"+]/g, '').trim()); 
 
-    res.status(200).json({ success: true, questions: questionLines });
+    res.status(200).json({ success: true, questions: questions });
   } catch (error) {
     const err = error as Error;
     console.log(err.message)
