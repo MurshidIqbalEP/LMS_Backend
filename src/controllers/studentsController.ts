@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 import User from "../modal/userModal";
+import Otp from "../modal/otpModal";
 import { generateRefreshtoken, generateToken } from "../utils/jwt";
 import { comparePassword, hashPassword } from "../utils/bcript";
 import generateRandomPassword from "../utils/rendomPas";
@@ -16,6 +17,8 @@ import CourseProgress from "../modal/courseProgressModal";
 import axios from "axios";
 import pdfParse from 'pdf-parse';
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import otpModal from "../modal/otpModal";
+import sendEmail from "../utils/sendEmail";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY as string);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
@@ -40,6 +43,10 @@ export const registerUser = async (
 
     const hashedPassword = await hashPassword(password);
     const user = await User.create({ name, email, password: hashedPassword });
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    await Otp.create({ email, code: otp });
+    await sendEmail(email, "Verify Your Email", `Your OTP is ${otp}`);
 
     res.status(201).json({ message: "User created successfully" });
   } catch (error) {
@@ -47,6 +54,36 @@ export const registerUser = async (
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// Verify OTP
+export const verifyOtp = async (req: Request, res: Response) => {
+  const { email, otp } = req.body;
+
+  try {
+    const existingOtp = await Otp.findOne({ email, code: otp });
+
+    if (!existingOtp) {
+       res.status(400).json({ message: "Invalid or expired OTP" });
+       return
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+       res.status(400).json({ message: "User not found" });
+       return
+    }
+
+    user.isVerified = true;
+    await user.save();
+
+    await Otp.deleteOne({ _id: existingOtp._id });
+
+    res.status(200).json({ message:"Email verified successfully",success:true });
+  } catch (err) {
+    res.status(500).json({ message: (err as Error).message });
+  }
+};
+
 
 // Login user
 export const loginUser = async (req: Request, res: Response): Promise<void> => {
@@ -119,6 +156,7 @@ export const googleRegister = async (
       email,
       password: hashedPassword,
       isGoogle: true,
+      isVerified:true
     });
 
     res.status(201).json({ message: "User created successfully" });

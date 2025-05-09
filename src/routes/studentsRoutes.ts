@@ -1,9 +1,10 @@
 import express from 'express';
-import { registerUser,loginUser,googleRegister,googleLogin, fetchAllCategory, fetchAllCourses,fetchCourse, payment, paymentVerification, fetchEntrollments, fetchPlayerData, getCourseProgress, markLectureViewed, generateQuestionsFromPDF,fetchTopCourses} from '../controllers/studentsController'; 
+import { registerUser,loginUser,googleRegister,googleLogin, fetchAllCategory, fetchAllCourses,fetchCourse, payment, paymentVerification, fetchEntrollments, fetchPlayerData, getCourseProgress, markLectureViewed, generateQuestionsFromPDF,fetchTopCourses,verifyOtp} from '../controllers/studentsController'; 
 
 const router = express.Router();
 
 router.post('/register', registerUser);
+router.post('/verifyOtp', verifyOtp);
 router.post("/googleregister", googleRegister);
 router.post("/login", loginUser);
 router.post("/googlelogin",googleLogin);
