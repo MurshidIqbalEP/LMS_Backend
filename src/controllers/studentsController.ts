@@ -43,8 +43,13 @@ export const registerUser = async (
 
     const hashedPassword = await hashPassword(password);
     const user = await User.create({ name, email, password: hashedPassword });
+    await Wallet.create({
+          userId: user._id,
+          balance: 0, 
+          transactions: [], 
+        });
+
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    
     await Otp.create({ email, code: otp });
     await sendEmail(email, "Verify Your Email", `Your OTP is ${otp}`);
 
@@ -95,14 +100,18 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ success: false, message: "User not found" });
       return;
     }
-
+    
     if (existedUser.isGoogle) {
       res
         .status(400)
         .json({ success: false, message: "Please log in using Google" });
       return;
     }
-
+    
+    if (!existedUser.isVerified) {
+      res.status(400).json({ success: false, message: "Email is not verified" });
+      return;
+    }
     const isPasswordValid = await comparePassword(
       password,
       existedUser.password

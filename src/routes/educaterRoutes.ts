@@ -1,11 +1,12 @@
 import express from 'express';
 import { Request, Response } from "express";
-import {registerEducator,loginEducator,postCourse, fetchCoursesById,deleteCourseById, fetchCourseByCourseId,UpdateCourse,fetchAllCategory } from '../controllers/educaterController'; 
+import {registerEducator,loginEducator,postCourse, fetchCoursesById,deleteCourseById, fetchCourseByCourseId,UpdateCourse,fetchAllCategory, verifyOtp } from '../controllers/educaterController'; 
 import { educatorauth } from '../middleware/EducatorAuth';
 
 const router = express.Router();
 
 router.post('/register',registerEducator);
+router.post('/verifyOtp',verifyOtp);
 router.post('/login',loginEducator);
 router.post('/postCourse',educatorauth,postCourse);
 router.get('/fetchCoursesById',educatorauth,fetchCoursesById);

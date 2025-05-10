@@ -7,6 +7,8 @@ import Chapter from "../modal/chapterModal";
 import Lecture from "../modal/lectureModal";
 import Category from "../modal/categoryModal";
 import Wallet from "../modal/walletModal";
+import Otp from "../modal/otpModal";
+import sendEmail from "../utils/sendEmail";
 
 // Register
 export const registerEducator = async (req: Request, res: Response) => {
@@ -43,10 +45,43 @@ export const registerEducator = async (req: Request, res: Response) => {
       transactions: [], 
     });
 
-    res.status(201).json({ message: "Educator created successfully" });
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await Otp.create({ email, code: otp });
+    await sendEmail(email, "Verify Your Email", `Your OTP is ${otp}`);
+
+    res.status(201).json({ message: "User created successfully" });
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// verify otp
+export const verifyOtp = async (req: Request, res: Response) => {
+  const { email, otp } = req.body;
+
+  try {
+    const existingOtp = await Otp.findOne({ email, code: otp });
+
+    if (!existingOtp) {
+       res.status(400).json({ message: "Invalid or expired OTP" });
+       return
+    }
+
+    const user = await Educator.findOne({ email });
+    if (!user) {
+       res.status(400).json({ message: "User not found" });
+       return
+    }
+
+    user.isVerified = true;
+    await user.save();
+
+    await Otp.deleteOne({ _id: existingOtp._id });
+
+    res.status(200).json({ message:"Email verified successfully",success:true });
+  } catch (err) {
+    res.status(500).json({ message: (err as Error).message });
   }
 };
 
@@ -60,7 +95,12 @@ export const loginEducator = async (req: Request, res: Response) => {
       res.status(400).json({ message: "Educator not found" });
       return;
     }
-
+    
+    if (!educator.isVerified) {
+      res.status(400).json({ success: false, message: "Email is not verified" });
+      return;
+    }
+    
     const isPasswordValid = await comparePassword(password, educator.password);
     if (!isPasswordValid) {
       res.status(400).json({ success: false, message: "Invalid credentials" });
