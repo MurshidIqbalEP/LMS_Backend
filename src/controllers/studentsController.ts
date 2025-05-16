@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import User from "../modal/userModal";
 import Otp from "../modal/otpModal";
+import Review from "../modal/reviewsModal";
 import { generateRefreshtoken, generateToken } from "../utils/jwt";
 import { comparePassword, hashPassword } from "../utils/bcript";
 import generateRandomPassword from "../utils/rendomPas";
@@ -573,8 +574,6 @@ export const generateQuestionsFromPDF = async (req:Request,res:Response): Promis
       return;
     }
 
-    console.log("hreeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
-
     const response = await axios.get(pdfUrl as string, {
       responseType: "arraybuffer",
     });
@@ -660,6 +659,37 @@ export const fetchTopCourses = async (
       },
     ]);
     res.status(200).json({ success: true, courses });
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// for posting reviews and rating
+export const postReview = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const {userId,courseId,rating,review} = req.body;
+
+    const existingReview = await Review.findOne({ user: userId, course: courseId });
+    if (existingReview) {
+       res.status(400).json({ message: "You have already reviewed this room." });
+       return
+    }
+
+    const Mreview = new Review({
+      user:userId,
+      course: courseId,
+      rating,
+      comment:review,
+    });
+
+    await Mreview.save();
+
+    res.status(201).json({ message: "Review posted successfully.",success:true });
+    
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ success: false, message: err.message });

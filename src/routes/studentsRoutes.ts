@@ -1,5 +1,5 @@
 import express from 'express';
-import { registerUser,loginUser,googleRegister,googleLogin, fetchAllCategory, fetchAllCourses,fetchCourse, payment, paymentVerification, fetchEntrollments, fetchPlayerData, getCourseProgress, markLectureViewed, generateQuestionsFromPDF,fetchTopCourses,verifyOtp} from '../controllers/studentsController'; 
+import { registerUser,loginUser,googleRegister,googleLogin, fetchAllCategory, fetchAllCourses,fetchCourse, payment, paymentVerification, fetchEntrollments, fetchPlayerData, getCourseProgress, markLectureViewed, generateQuestionsFromPDF,fetchTopCourses,verifyOtp, postReview} from '../controllers/studentsController'; 
 
 const router = express.Router();
 
@@ -19,6 +19,7 @@ router.patch("/markLecture",markLectureViewed);
 router.get("/fetchCourseProgress",getCourseProgress);
 router.get("/fetchQuestionsFromPdf",generateQuestionsFromPDF);
 router.get("/fetchTopCourses",fetchTopCourses);
+router.post("/postReview",postReview)
 
 
 export default router;

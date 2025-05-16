@@ -6,7 +6,7 @@ const reviewSchema = new mongoose.Schema({
         ref: "User",
         required: true,
       },
-      room: {
+      course: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Course", 
         required: true,
