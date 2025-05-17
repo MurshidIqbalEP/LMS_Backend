@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import User from "../modal/userModal";
 import Otp from "../modal/otpModal";
 import Review from "../modal/reviewsModal";
-import { generateRefreshtoken, generateToken } from "../utils/jwt";
+import { generateRefreshtoken, generateToken, verifyToken } from "../utils/jwt";
 import { comparePassword, hashPassword } from "../utils/bcript";
 import generateRandomPassword from "../utils/rendomPas";
 import Category from "../modal/categoryModal";
@@ -16,10 +16,11 @@ import Payment from "../modal/paymentModal";
 import Wallet from "../modal/walletModal";
 import CourseProgress from "../modal/courseProgressModal";
 import axios from "axios";
-import pdfParse from 'pdf-parse';
+import pdfParse from "pdf-parse";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import otpModal from "../modal/otpModal";
 import sendEmail from "../utils/sendEmail";
+import Educator from "../modal/educatorModal";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY as string);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
@@ -45,10 +46,10 @@ export const registerUser = async (
     const hashedPassword = await hashPassword(password);
     const user = await User.create({ name, email, password: hashedPassword });
     await Wallet.create({
-          userId: user._id,
-          balance: 0, 
-          transactions: [], 
-        });
+      userId: user._id,
+      balance: 0,
+      transactions: [],
+    });
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     await Otp.create({ email, code: otp });
@@ -69,14 +70,14 @@ export const verifyOtp = async (req: Request, res: Response) => {
     const existingOtp = await Otp.findOne({ email, code: otp });
 
     if (!existingOtp) {
-       res.status(400).json({ message: "Invalid or expired OTP" });
-       return
+      res.status(400).json({ message: "Invalid or expired OTP" });
+      return;
     }
 
     const user = await User.findOne({ email });
     if (!user) {
-       res.status(400).json({ message: "User not found" });
-       return
+      res.status(400).json({ message: "User not found" });
+      return;
     }
 
     user.isVerified = true;
@@ -84,12 +85,13 @@ export const verifyOtp = async (req: Request, res: Response) => {
 
     await Otp.deleteOne({ _id: existingOtp._id });
 
-    res.status(200).json({ message:"Email verified successfully",success:true });
+    res
+      .status(200)
+      .json({ message: "Email verified successfully", success: true });
   } catch (err) {
     res.status(500).json({ message: (err as Error).message });
   }
 };
-
 
 // Login user
 export const loginUser = async (req: Request, res: Response): Promise<void> => {
@@ -101,16 +103,18 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ success: false, message: "User not found" });
       return;
     }
-    
+
     if (existedUser.isGoogle) {
       res
         .status(400)
         .json({ success: false, message: "Please log in using Google" });
       return;
     }
-    
+
     if (!existedUser.isVerified) {
-      res.status(400).json({ success: false, message: "Email is not verified" });
+      res
+        .status(400)
+        .json({ success: false, message: "Email is not verified" });
       return;
     }
     const isPasswordValid = await comparePassword(
@@ -122,8 +126,11 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const token = generateToken(existedUser._id.toString());
-    const refreshToken = generateRefreshtoken(existedUser._id.toString());
+    const token = generateToken(existedUser._id.toString(), "student");
+    const refreshToken = generateRefreshtoken(
+      existedUser._id.toString(),
+      "student"
+    );
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
@@ -166,7 +173,7 @@ export const googleRegister = async (
       email,
       password: hashedPassword,
       isGoogle: true,
-      isVerified:true
+      isVerified: true,
     });
 
     res.status(201).json({ message: "User created successfully" });
@@ -198,8 +205,11 @@ export const googleLogin = async (
       return;
     }
 
-    const token = generateToken(existedUser._id.toString());
-    const refreshToken = generateRefreshtoken(existedUser._id.toString());
+    const token = generateToken(existedUser._id.toString(), "student");
+    const refreshToken = generateRefreshtoken(
+      existedUser._id.toString(),
+      "student"
+    );
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
@@ -267,7 +277,7 @@ export const fetchCourse = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { courseId,studentId } = req.query;
+    const { courseId, studentId } = req.query;
 
     const course = await Course.findById(courseId, {
       resources: 0,
@@ -286,8 +296,8 @@ export const fetchCourse = async (
           options: { sort: { position: 1 } },
         },
       });
-      const isEnrolled = course?.enrolledStudents.includes(studentId as string);
-    res.status(200).json({ courseData: course,isEnrolled });
+    const isEnrolled = course?.enrolledStudents.includes(studentId as string);
+    res.status(200).json({ courseData: course, isEnrolled });
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ success: false, message: err.message });
@@ -315,9 +325,19 @@ export const payment = async (req: Request, res: Response): Promise<void> => {
 };
 
 // For Razorpay Payment Verification
-export const paymentVerification = async (req: Request,res: Response): Promise<void> => {
+export const paymentVerification = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
-    const {razorpay_order_id,razorpay_payment_id,razorpay_signature,courseId,educatorId,studentId} = req.body;
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      courseId,
+      educatorId,
+      studentId,
+    } = req.body;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       res
@@ -351,7 +371,11 @@ export const paymentVerification = async (req: Request,res: Response): Promise<v
       const amount = course.price;
       let wallet = await Wallet.findOne({ userId: educatorId });
       if (!wallet) {
-        wallet = new Wallet({ userId: educatorId, balance: 0, transactions: [] });
+        wallet = new Wallet({
+          userId: educatorId,
+          balance: 0,
+          transactions: [],
+        });
       }
       wallet.balance += amount;
       wallet.transactions.push({
@@ -388,14 +412,13 @@ export const fetchEntrollments = async (
 ): Promise<void> => {
   try {
     const { studentId } = req.params;
-    
+
     const enrolledCourses = await Course.find(
       { enrolledStudents: studentId },
       { _id: 1, title: 1, description: 1, category: 1, price: 1, thumbnail: 1 }
     );
-   
-    res.status(200).json({success:true,enrolledCourses})
-   
+
+    res.status(200).json({ success: true, enrolledCourses });
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ success: false, message: err.message });
@@ -408,7 +431,7 @@ export const fetchPlayerData = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { courseId,studentId } = req.query;
+    const { courseId, studentId } = req.query;
 
     const course = await Course.findById(courseId)
       .populate({
@@ -424,38 +447,42 @@ export const fetchPlayerData = async (
           options: { sort: { position: 1 } },
         },
       });
-      
-      if (!course) {
-         res.status(404).json({ success: false, message: "Course not found" });
-         return
-      }
-      const isEnrolled = course?.enrolledStudents.includes(studentId as string);
-      if(isEnrolled){
-        res.status(200).json({ courseData: course });
-      }else{
-         res.status(403).json({ success: false, message: "Access denied. Enrollment required." });
-      }
-    
+
+    if (!course) {
+      res.status(404).json({ success: false, message: "Course not found" });
+      return;
+    }
+    const isEnrolled = course?.enrolledStudents.includes(studentId as string);
+    if (isEnrolled) {
+      res.status(200).json({ courseData: course });
+    } else {
+      res
+        .status(403)
+        .json({
+          success: false,
+          message: "Access denied. Enrollment required.",
+        });
+    }
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-
 // For mark lecture as viewed
-export const markLectureViewed = async (req: Request, res: Response): Promise<void> => {
+export const markLectureViewed = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
-    const { userId, courseId, chapterId, lectureId,status } = req.body;
+    const { userId, courseId, chapterId, lectureId, status } = req.body;
 
-    
-    
     // Find user's course progress
     const progress = await CourseProgress.findOne({ userId, courseId });
 
     if (!progress) {
-       res.status(404).json({ message: "Course progress not found" });
-       return
+      res.status(404).json({ message: "Course progress not found" });
+      return;
     }
 
     // Find the specific chapter in progress
@@ -464,18 +491,18 @@ export const markLectureViewed = async (req: Request, res: Response): Promise<vo
     );
 
     if (!chapterProgress) {
-       res.status(404).json({ message: "Chapter not found in progress" });
-       return
+      res.status(404).json({ message: "Chapter not found in progress" });
+      return;
     }
 
     // Find the lecture in the chapter
     const lectureProgress = chapterProgress.lecturesProgress.find(
       (lecture) => lecture.lectureId.toString() === lectureId
     );
-    
+
     if (!lectureProgress) {
-       res.status(404).json({ message: "Lecture not found in progress" });
-       return
+      res.status(404).json({ message: "Lecture not found in progress" });
+      return;
     }
 
     // Mark the lecture as completed if not already done
@@ -516,56 +543,72 @@ export const markLectureViewed = async (req: Request, res: Response): Promise<vo
   }
 };
 
-
 // For Get current course progress
-export const getCourseProgress = async (req:Request,res:Response): Promise<void> =>{
+export const getCourseProgress = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { userId, courseId } = req.query;
 
     let progress = await CourseProgress.findOne({ userId, courseId });
 
     if (!progress) {
-      const course = await Course.findById(courseId)
-        .populate({
-          path: "chapters",
-          populate: { path: "lectures" } 
-        })as unknown as { chapters: { lectures: any[] }[] };
+      const course = (await Course.findById(courseId).populate({
+        path: "chapters",
+        populate: { path: "lectures" },
+      })) as unknown as { chapters: { lectures: any[] }[] };
 
       if (!course) {
         res.status(404).json({ success: false, message: "Course not found" });
         return;
-      } 
-       progress = new CourseProgress({
+      }
+      progress = new CourseProgress({
         userId,
         courseId,
-        chapters: course.chapters.map((chapter: any,index: number) => ({
+        chapters: course.chapters.map((chapter: any, index: number) => ({
           chapterId: chapter._id,
-          isCompleted:false,
-          lecturesProgress: chapter.lectures.map((lecture: any,lectureIndex: number) => ({
-            lectureId: lecture._id,
-            status:index === 0 && lectureIndex === 0? 'in_progress': 'not_started',
-          })),
+          isCompleted: false,
+          lecturesProgress: chapter.lectures.map(
+            (lecture: any, lectureIndex: number) => ({
+              lectureId: lecture._id,
+              status:
+                index === 0 && lectureIndex === 0
+                  ? "in_progress"
+                  : "not_started",
+            })
+          ),
         })),
       });
 
       await progress.save();
-    
     }
 
-    const totalLectures = progress.chapters.reduce((acc, ch) => acc + ch.lecturesProgress.length, 0);
-    const completedLectures = progress.chapters.reduce((acc, ch) => acc + ch.lecturesProgress.filter(lec => lec.status === "completed").length, 0);
-    const completionPercentage = totalLectures > 0 ? (completedLectures / totalLectures) * 100 : 0;
+    const totalLectures = progress.chapters.reduce(
+      (acc, ch) => acc + ch.lecturesProgress.length,
+      0
+    );
+    const completedLectures = progress.chapters.reduce(
+      (acc, ch) =>
+        acc +
+        ch.lecturesProgress.filter((lec) => lec.status === "completed").length,
+      0
+    );
+    const completionPercentage =
+      totalLectures > 0 ? (completedLectures / totalLectures) * 100 : 0;
 
     res.status(200).json({ success: true, completionPercentage, progress });
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ success: false, message: err.message });
   }
-}
-
+};
 
 // For creating questions from pdf
-export const generateQuestionsFromPDF = async (req:Request,res:Response): Promise<void> =>{
+export const generateQuestionsFromPDF = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { pdfUrl } = req.query;
 
@@ -600,7 +643,7 @@ export const generateQuestionsFromPDF = async (req:Request,res:Response): Promis
     const completion = await axios.post(
       "https://openrouter.ai/api/v1/chat/completions",
       {
-        model: "deepseek/deepseek-r1-zero:free", 
+        model: "deepseek/deepseek-r1-zero:free",
         messages: [
           {
             role: "user",
@@ -612,25 +655,25 @@ export const generateQuestionsFromPDF = async (req:Request,res:Response): Promis
         headers: {
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": "http://localhost:5000", 
-          "X-Title": "Interview Question Generator", 
+          "HTTP-Referer": "http://localhost:5000",
+          "X-Title": "Interview Question Generator",
         },
       }
     );
 
     const rawText: string = completion.data.choices[0]?.message?.content || "";
-    const cleanedInput = rawText.replace(/\\boxed\{\[|\]\}/g, '');
+    const cleanedInput = rawText.replace(/\\boxed\{\[|\]\}/g, "");
     const questions = cleanedInput
-  .split(",") 
-  .map((q) => q.replace(/[\n"+]/g, '').trim()); 
+      .split(",")
+      .map((q) => q.replace(/[\n"+]/g, "").trim());
 
     res.status(200).json({ success: true, questions: questions });
   } catch (error) {
     const err = error as Error;
-    console.log(err.message)
+    console.log(err.message);
     res.status(500).json({ success: false, message: err.message });
   }
-}
+};
 
 // For fetching Top Courses
 export const fetchTopCourses = async (
@@ -641,7 +684,7 @@ export const fetchTopCourses = async (
     const courses = await Course.aggregate([
       {
         $addFields: {
-          enrolledCount: { $size: "$enrolledStudents" }, 
+          enrolledCount: { $size: "$enrolledStudents" },
         },
       },
       {
@@ -651,9 +694,9 @@ export const fetchTopCourses = async (
         $limit: 5,
       },
       {
-        $project: { 
+        $project: {
           title: 1,
-          thumbnail: 1, 
+          thumbnail: 1,
           _id: 1,
         },
       },
@@ -671,25 +714,71 @@ export const postReview = async (
   res: Response
 ): Promise<void> => {
   try {
-    const {userId,courseId,rating,review} = req.body;
+    const { userId, courseId, rating, review } = req.body;
 
-    const existingReview = await Review.findOne({ user: userId, course: courseId });
+    const existingReview = await Review.findOne({
+      user: userId,
+      course: courseId,
+    });
     if (existingReview) {
-       res.status(400).json({ message: "You have already reviewed this room." });
-       return
+      res.status(400).json({ message: "You have already reviewed this room." });
+      return;
     }
 
     const Mreview = new Review({
-      user:userId,
+      user: userId,
       course: courseId,
       rating,
-      comment:review,
+      comment: review,
     });
 
     await Mreview.save();
 
-    res.status(201).json({ message: "Review posted successfully.",success:true });
-    
+    res
+      .status(201)
+      .json({ message: "Review posted successfully.", success: true });
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const refreshToken = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const token = req.cookies.refreshToken;
+    if (!token) {
+      res
+        .status(400)
+        .json({ success: false, message: "No refresh token found" });
+      return;
+    }
+
+    const decoded = verifyToken(token, process.env.JWT_SECRET as string) as {
+      id: string;
+      role: "student" | "educator";
+    };
+   
+    let user;
+    if (decoded.role === "student") {
+      user = await User.findById(decoded.id);
+    } else if (decoded.role === "educator") {
+      user = await Educator.findById(decoded.id);
+    }
+
+    if (!user) {
+      res.status(404).json({ success: false, message: "User not found" });
+      return;
+    }
+
+    const newAccessToken = generateToken(decoded.id, decoded.role);
+    res.status(200).json({
+      success: true,
+      accessToken: newAccessToken,
+    });
+
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ success: false, message: err.message });

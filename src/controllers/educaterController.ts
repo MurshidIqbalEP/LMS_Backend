@@ -107,8 +107,8 @@ export const loginEducator = async (req: Request, res: Response) => {
       return;
     }
 
-     const token = generateToken(educator._id.toString());
-     const refreshToken = generateRefreshtoken(educator._id.toString());
+     const token = generateToken(educator._id.toString(),"educator");
+     const refreshToken = generateRefreshtoken(educator._id.toString(),"educator");
     
         res.cookie("refreshToken", refreshToken, {
           httpOnly: true,

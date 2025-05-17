@@ -7,11 +7,15 @@ export const educatorauth = async (req: Request, res: Response, next: NextFuncti
     const token = req.headers.authorization?.split(" ")[1];
 
     if (!token) {
-       res.status(401).json({ success: false, message: "Unauthorized: No token provided" });
+       res.status(401).json({ success: false, message: "Unauthorized: No token provided"   });
        return
     }
 
-    const decoded =  jwt.verify(token, process.env.JWT_SECRET as string) as { id: string };
+    const decoded =  jwt.verify(token, process.env.JWT_SECRET as string) as { id: string,role:string };
+    if (decoded.role !== "educator") {
+      res.status(403).json({ message: "Access denied for non-educators" });
+      return;
+    }
     const educatorId = decoded.id;
     
     const educator = await Educator.findById(educatorId);
