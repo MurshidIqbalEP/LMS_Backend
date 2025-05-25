@@ -252,18 +252,29 @@ export const fetchAllCourses = async (
   res: Response
 ): Promise<void> => {
   try {
-    const courses = await Course.find(
-      {},
+    const courses = await Course.aggregate([
       {
-        _id: 1,
-        title: 1,
-        description: 1,
-        category: 1,
-        price: 1,
-        thumbnail: 1,
-        rating: 1,
+        $lookup: {
+          from: "reviews", 
+          localField: "_id",
+          foreignField: "course",
+          as: "reviews"
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          title: 1,
+          description: 1,
+          category: 1,
+          price: 1,
+          thumbnail: 1,
+          rating: 1,
+          reviews: 1
+        }
       }
-    );
+    ]);
+    
     res.status(200).json(courses);
   } catch (error) {
     const err = error as Error;
@@ -297,7 +308,11 @@ export const fetchCourse = async (
         },
       });
     const isEnrolled = course?.enrolledStudents.includes(studentId as string);
-    res.status(200).json({ courseData: course, isEnrolled });
+     const reviews = await Review.find({ course: courseId })
+      .populate({ path: "user", select: "name" }) 
+      .sort({ createdAt: -1 }); 
+    
+    res.status(200).json({ courseData: course, isEnrolled,reviews });
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ success: false, message: err.message });
