@@ -269,7 +269,7 @@ export const fetchAllCourses = async (
           category: 1,
           price: 1,
           thumbnail: 1,
-          rating: 1,
+          rating: 1,  
           reviews: 1
         }
       }

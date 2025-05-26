@@ -1,0 +1,28 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const studentsController_1 = require("../controllers/studentsController");
+const StudentAuth_1 = require("../middleware/StudentAuth");
+const router = express_1.default.Router();
+router.post('/register', studentsController_1.registerUser);
+router.post('/verifyOtp', studentsController_1.verifyOtp);
+router.post("/googleregister", studentsController_1.googleRegister);
+router.post("/login", studentsController_1.loginUser);
+router.post("/googlelogin", studentsController_1.googleLogin);
+router.post("/refresh-token", studentsController_1.refreshToken);
+router.get("/fetchAllCategory", StudentAuth_1.studentauth, studentsController_1.fetchAllCategory);
+router.get("/fetchAllCourse", StudentAuth_1.studentauth, studentsController_1.fetchAllCourses);
+router.get("/fetchCourse", StudentAuth_1.studentauth, studentsController_1.fetchCourse);
+router.post("/payment", StudentAuth_1.studentauth, studentsController_1.payment);
+router.post("/paymentVerification", StudentAuth_1.studentauth, studentsController_1.paymentVerification);
+router.get("/myEntrollments/:studentId", StudentAuth_1.studentauth, studentsController_1.fetchEntrollments);
+router.get("/fetchPlayerData", StudentAuth_1.studentauth, studentsController_1.fetchPlayerData);
+router.patch("/markLecture", StudentAuth_1.studentauth, studentsController_1.markLectureViewed);
+router.get("/fetchCourseProgress", StudentAuth_1.studentauth, studentsController_1.getCourseProgress);
+router.get("/fetchQuestionsFromPdf", StudentAuth_1.studentauth, studentsController_1.generateQuestionsFromPDF);
+router.get("/fetchTopCourses", StudentAuth_1.studentauth, studentsController_1.fetchTopCourses);
+router.post("/postReview", StudentAuth_1.studentauth, studentsController_1.postReview);
+exports.default = router;
