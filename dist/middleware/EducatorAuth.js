@@ -34,9 +34,10 @@ const educatorauth = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
             res.status(400).json({ message: "User not found" });
             return;
         }
-        // if (user.isBlocked) {
-        //   return res.status(403).json({ message: "User is blocked", accountType: "user" });
-        // }
+        if (educator.isBlocked) {
+            res.status(403).json({ message: "User is blocked", accountType: "user" });
+            return;
+        }
         next();
     }
     catch (error) {

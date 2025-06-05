@@ -12,7 +12,8 @@ const educatorSchema = new mongoose_1.default.Schema({
     qualification: { type: String, required: true },
     profilePicture: { type: String, required: true },
     governmentId: { type: String, required: true },
-    isVerified: { type: Boolean, default: false }
+    isVerified: { type: Boolean, default: false },
+    isBlocked: { type: Boolean, default: false }
 }, { timestamps: true });
 const Educator = mongoose_1.default.model("Educator", educatorSchema);
 exports.default = Educator;

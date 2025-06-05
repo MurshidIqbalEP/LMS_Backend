@@ -55,6 +55,7 @@ const registerUser = (req, res) => __awaiter(void 0, void 0, void 0, function* (
             transactions: [],
         });
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        console.log(otp);
         yield otpModal_1.default.create({ email, code: otp });
         yield (0, sendEmail_1.default)(email, "Verify Your Email", `Your OTP is ${otp}`);
         res.status(201).json({ message: "User created successfully" });
@@ -98,6 +99,10 @@ const loginUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         const existedUser = yield userModal_1.default.findOne({ email });
         if (!existedUser) {
             res.status(400).json({ success: false, message: "User not found" });
+            return;
+        }
+        if (existedUser.isBlocked) {
+            res.status(403).json({ message: "User is blocked", accountType: "user" });
             return;
         }
         if (existedUser.isGoogle) {
@@ -220,6 +225,13 @@ exports.fetchAllCategory = fetchAllCategory;
 const fetchAllCourses = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const courses = yield courseModal_1.default.aggregate([
+            {
+                $match: {
+                    isEdited: false,
+                    isRejected: false,
+                    isPublished: true
+                }
+            },
             {
                 $lookup: {
                     from: "reviews",

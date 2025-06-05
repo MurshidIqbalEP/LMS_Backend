@@ -91,6 +91,10 @@ const loginEducator = (req, res) => __awaiter(void 0, void 0, void 0, function* 
             res.status(400).json({ message: "Educator not found" });
             return;
         }
+        if (educator.isBlocked) {
+            res.status(403).json({ message: "User is blocked", accountType: "user" });
+            return;
+        }
         if (!educator.isVerified) {
             res.status(400).json({ success: false, message: "Email is not verified" });
             return;
@@ -252,7 +256,7 @@ const UpdateCourse = (req, res) => __awaiter(void 0, void 0, void 0, function* (
             return;
         }
         const updatedCourse = yield courseModal_1.default.findByIdAndUpdate(id, {
-            $set: Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, (title && { title })), (description && { description })), (educatorId && { educatorId })), (category && { category })), (price !== undefined && { price })), (thumbnailUrl && { thumbnail: thumbnailUrl })), (resourceUrl && { resources: resourceUrl })),
+            $set: Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, (title && { title })), (description && { description })), (educatorId && { educatorId })), (category && { category })), (price !== undefined && { price })), (thumbnailUrl && { thumbnail: thumbnailUrl })), (resourceUrl && { resources: resourceUrl })), { isEdited: true }),
         }, { new: true });
         if (!updatedCourse) {
             res.status(404).json({ success: false, message: "Course not found." });

@@ -14,6 +14,8 @@ const courseSchema = new mongoose_1.default.Schema({
     resources: { type: String },
     chapters: [{ type: mongoose_1.default.Schema.Types.ObjectId, ref: "Chapter" }],
     isPublished: { type: Boolean, default: false },
+    isRejected: { type: Boolean, default: false },
+    isEdited: { type: Boolean, default: false },
     enrolledStudents: [{ type: String, ref: "User" }],
     createdAt: { type: Date, default: Date.now },
 });

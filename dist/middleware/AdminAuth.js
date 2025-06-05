@@ -12,10 +12,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.studentauth = void 0;
+exports.adminauth = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const userModal_1 = __importDefault(require("../modal/userModal"));
-const studentauth = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+const adminauth = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
         const token = (_a = req.headers.authorization) === null || _a === void 0 ? void 0 : _a.split(" ")[1];
@@ -24,8 +24,8 @@ const studentauth = (req, res, next) => __awaiter(void 0, void 0, void 0, functi
             return;
         }
         const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET);
-        if (decoded.role !== "student") {
-            res.status(403).json({ message: "Access denied for non-student" });
+        if (decoded.role !== "admin") {
+            res.status(403).json({ message: "Access denied for non-admin" });
             return;
         }
         const userId = decoded.id;
@@ -34,8 +34,8 @@ const studentauth = (req, res, next) => __awaiter(void 0, void 0, void 0, functi
             res.status(400).json({ message: "User not found" });
             return;
         }
-        if (user.isBlocked) {
-            res.status(403).json({ message: "User is blocked", accountType: "user" });
+        if (!user.isAdmin) {
+            res.status(403).json({ message: "You are not a admin", accountType: "user" });
             return;
         }
         next();
@@ -45,4 +45,4 @@ const studentauth = (req, res, next) => __awaiter(void 0, void 0, void 0, functi
         return;
     }
 });
-exports.studentauth = studentauth;
+exports.adminauth = adminauth;

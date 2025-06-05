@@ -20,6 +20,7 @@ const morgan_1 = __importDefault(require("morgan"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const studentsRoutes_1 = __importDefault(require("./routes/studentsRoutes"));
 const educaterRoutes_1 = __importDefault(require("./routes/educaterRoutes"));
+const adminRoutes_1 = __importDefault(require("./routes/adminRoutes"));
 const db_1 = __importDefault(require("./db"));
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
@@ -36,6 +37,7 @@ app.use((0, cookie_parser_1.default)());
 app.use((0, morgan_1.default)("dev"));
 app.use('/api/students', studentsRoutes_1.default);
 app.use('/api/educator', educaterRoutes_1.default);
+app.use('/api/admin', adminRoutes_1.default);
 app.listen(PORT, () => __awaiter(void 0, void 0, void 0, function* () {
     yield (0, db_1.default)();
     console.log(`Server running on port ${PORT}`);
