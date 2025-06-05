@@ -1,10 +1,10 @@
 import jwt from "jsonwebtoken";
 
-export const generateToken = (id:string,role: "student" | "educator") => {
+export const generateToken = (id:string,role: "student" | "educator" | "admin") => {
   return jwt.sign({ id,role }, process.env.JWT_SECRET as string, { expiresIn: "15m" });
 };
 
-export const generateRefreshtoken = (id:string,role: "student" | "educator") => {
+export const generateRefreshtoken = (id:string,role: "student" | "educator" | "admin") => {
   return jwt.sign({ id,role }, process.env.JWT_SECRET as string, { expiresIn: "7d" });
 };
 

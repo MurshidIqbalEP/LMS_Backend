@@ -95,6 +95,10 @@ export const loginEducator = async (req: Request, res: Response) => {
       res.status(400).json({ message: "Educator not found" });
       return;
     }
+     if (educator.isBlocked) {
+       res.status(403).json({ message: "User is blocked", accountType: "user" });
+       return
+    }
     
     if (!educator.isVerified) {
       res.status(400).json({ success: false, message: "Email is not verified" });
@@ -277,7 +281,8 @@ export const UpdateCourse = async (req: Request, res: Response) => {
           ...(category && { category }),
           ...(price !== undefined && { price }),
           ...(thumbnailUrl && { thumbnail: thumbnailUrl }),
-          ...(resourceUrl && { resources: resourceUrl })
+          ...(resourceUrl && { resources: resourceUrl }),
+          isEdited:true
         },
       },
       { new: true } 

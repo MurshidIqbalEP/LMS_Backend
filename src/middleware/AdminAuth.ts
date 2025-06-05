@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import User from "../modal/userModal";
 
-export const studentauth = async (req: Request, res: Response, next: NextFunction) => {
+export const adminauth = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const token = req.headers.authorization?.split(" ")[1];
 
@@ -12,8 +12,8 @@ export const studentauth = async (req: Request, res: Response, next: NextFunctio
     }
 
     const decoded =  jwt.verify(token, process.env.JWT_SECRET as string) as { id: string,role: string };
-    if (decoded.role !== "student") {
-   res.status(403).json({ message: "Access denied for non-student" });
+    if (decoded.role !== "admin") {
+   res.status(403).json({ message: "Access denied for non-admin" });
    return
    }
     const userId = decoded.id;
@@ -25,8 +25,8 @@ export const studentauth = async (req: Request, res: Response, next: NextFunctio
        return
     }
 
-    if (user.isBlocked) {
-       res.status(403).json({ message: "User is blocked", accountType: "user" });
+    if (!user.isAdmin) {
+       res.status(403).json({ message: "You are not a admin", accountType: "user" });
        return
     }
 

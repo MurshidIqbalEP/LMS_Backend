@@ -25,9 +25,10 @@ export const educatorauth = async (req: Request, res: Response, next: NextFuncti
        return
     }
 
-    // if (user.isBlocked) {
-    //   return res.status(403).json({ message: "User is blocked", accountType: "user" });
-    // }
+    if (educator.isBlocked) {
+       res.status(403).json({ message: "User is blocked", accountType: "user" });
+       return
+    }
 
     next();
   } catch (error) {

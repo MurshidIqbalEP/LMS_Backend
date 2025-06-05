@@ -6,6 +6,7 @@ import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import studentsRoutes from "./routes/studentsRoutes"
 import educatorRoutes from "./routes/educaterRoutes"
+import adminRoutes from "./routes/adminRoutes"
 import connectDB from "./db";
 
 
@@ -30,6 +31,7 @@ app.use(morgan("dev"));
 
 app.use('/api/students',studentsRoutes);
 app.use('/api/educator',educatorRoutes);
+app.use('/api/admin',adminRoutes);
 
 app.listen(PORT, async() => {
    await connectDB()

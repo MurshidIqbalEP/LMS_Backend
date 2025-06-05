@@ -52,6 +52,8 @@ export const registerUser = async (
     });
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log(otp);
+    
     await Otp.create({ email, code: otp });
     await sendEmail(email, "Verify Your Email", `Your OTP is ${otp}`);
 
@@ -102,6 +104,11 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
     if (!existedUser) {
       res.status(400).json({ success: false, message: "User not found" });
       return;
+    }
+
+    if (existedUser.isBlocked) {
+       res.status(403).json({ message: "User is blocked", accountType: "user" });
+       return
     }
 
     if (existedUser.isGoogle) {
@@ -253,27 +260,35 @@ export const fetchAllCourses = async (
 ): Promise<void> => {
   try {
     const courses = await Course.aggregate([
-      {
-        $lookup: {
-          from: "reviews", 
-          localField: "_id",
-          foreignField: "course",
-          as: "reviews"
-        }
-      },
-      {
-        $project: {
-          _id: 1,
-          title: 1,
-          description: 1,
-          category: 1,
-          price: 1,
-          thumbnail: 1,
-          rating: 1,  
-          reviews: 1
-        }
-      }
-    ]);
+  {
+    $match: {
+      isEdited: false,
+      isRejected: false,
+      isPublished: true
+    }
+  },
+  {
+    $lookup: {
+      from: "reviews",
+      localField: "_id",
+      foreignField: "course",
+      as: "reviews"
+    }
+  },
+  {
+    $project: {
+      _id: 1,
+      title: 1,
+      description: 1,
+      category: 1,
+      price: 1,
+      thumbnail: 1,
+      rating: 1,
+      reviews: 1
+    }
+  }
+]);
+
     
     res.status(200).json(courses);
   } catch (error) {
