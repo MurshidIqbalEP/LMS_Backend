@@ -1,7 +1,6 @@
-
 import nodemailer from "nodemailer";
 
-const sendEmail = async (to: string, subject: string, text: string) => {
+const sendEmail = async (to: string, subject: string, otp: string) => {
   try {
     const transporter = nodemailer.createTransport({
       service: "Gmail",
@@ -11,14 +10,21 @@ const sendEmail = async (to: string, subject: string, text: string) => {
       },
     });
 
-    const info = await transporter.sendMail({
+    const html = `
+  <p>Hello,</p>
+  <p>Your One Time Password (OTP) is: <strong>${otp}</strong></p>
+  <p>This OTP is valid for 5 minutes.</p>
+  <p>Thanks,<br/>Team Support</p>
+`;
+
+    await transporter.sendMail({
       from: process.env.EMAIL,
       to,
-      subject,
-      text,
+      subject: "🔐 Your One Time Password (OTP)",
+      text: `Your OTP is ${otp}`,
+      html,
     });
 
-    console.log("Email sent: ", info.response);
     return { success: true, message: "Email sent" };
   } catch (error) {
     console.error("Error sending email:", error);

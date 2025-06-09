@@ -47,7 +47,7 @@ export const registerEducator = async (req: Request, res: Response) => {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     await Otp.create({ email, code: otp });
-    await sendEmail(email, "Verify Your Email", `Your OTP is ${otp}`);
+    await sendEmail(email, "Verify Your Email", otp);
 
     res.status(201).json({ message: "User created successfully" });
   } catch (error) {
