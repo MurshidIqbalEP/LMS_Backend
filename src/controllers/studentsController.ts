@@ -653,6 +653,7 @@ export const generateQuestionsFromPDF = async (
 
     const data = await pdfParse(response.data);
     const extractedText = data.text;
+    
 
     const prompt = `
             Generate 10 meaningful and relevant interview questions from the following content.
@@ -673,7 +674,7 @@ export const generateQuestionsFromPDF = async (
     const completion = await axios.post(
       "https://openrouter.ai/api/v1/chat/completions",
       {
-        model: "deepseek/deepseek-r1-zero:free",
+        model: "deepseek/deepseek-chat-v3.1:free",
         messages: [
           {
             role: "user",
@@ -690,12 +691,15 @@ export const generateQuestionsFromPDF = async (
         },
       }
     );
-
+    console.log(completion);
     const rawText: string = completion.data.choices[0]?.message?.content || "";
     const cleanedInput = rawText.replace(/\\boxed\{\[|\]\}/g, "");
     const questions = cleanedInput
       .split(",")
       .map((q) => q.replace(/[\n"+]/g, "").trim());
+
+      
+      
 
     res.status(200).json({ success: true, questions: questions });
   } catch (error) {
